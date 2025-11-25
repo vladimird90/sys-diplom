@@ -1,0 +1,24 @@
+---
+- name: Установка Elasticsearch
+  hosts: elastic
+  become: yes
+  tasks:
+    - name: Установка java
+      apt:
+        name: default-jre
+        state: latest
+    - name: Установка Elasticsearch
+      apt:
+        deb: https://mirror.yandex.ru/mirrors/elastic/9/pool/main/e/elasticsearch/elasticsearch-9.2.1-amd64.deb
+    - name: Копирование настроек
+      copy:
+        src: ./elastic_conf.yml
+        dest: /etc/elasticsearch/elasticsearch.yml
+    - name: systemd daemon-reload
+      systemd:
+        daemon_reload: true
+    - name: Запуск Elasticsearch
+      service:
+        name: elasticsearch
+        state: restarted
+        enabled: true

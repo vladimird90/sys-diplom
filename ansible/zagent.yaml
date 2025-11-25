@@ -1,0 +1,26 @@
+---
+- name: Install Zabbix Agent
+  hosts: webservers
+  become: yes
+  vars:
+    zabbix_server: 10.0.1.4
+  tasks:
+    - name: Добавление репозитория Zabbix
+      apt:
+        deb: https://repo.zabbix.com/zabbix/7.0/ubuntu/pool/main/z/zabbix-release/zabbix-release_latest_7.0+ubuntu24.04_all.deb
+    - name: Обновление кэша репозиториев
+      apt:
+        update_cache: yes
+    - name: Установка Zabbix agent
+      apt:
+        name: zabbix-agent
+        state: latest
+    - name: Копирование настроек
+      template:
+        src: ./zabbix_agentd.conf.j2
+        dest: /etc/zabbix/zabbix_agentd.conf
+    - name: Перезапуск Zabbix agent
+      service:
+        name: zabbix-agent
+        state: restarted
+        enabled: true

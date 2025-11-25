@@ -1,0 +1,70 @@
+---
+- name: Install Zabbix Server
+  hosts: zabbix
+  become: yes
+  vars:
+    zabbix_pass: zabbix
+  tasks:
+    - name: Добавление репозитория Zabbix
+      apt:
+        deb: https://repo.zabbix.com/zabbix/7.0/ubuntu/pool/main/z/zabbix-release/zabbix-release_latest_7.0+ubuntu24.04_all.deb
+    - name: Обновление кэша репозиториев
+      apt:
+        update_cache: yes
+    - name: Установка PostgreSQL
+      apt:
+        name: postgresql
+        state: latest
+    - name: Установка Zabbix server, frontend, agent
+      apt:
+        pkg:
+          - zabbix-server-pgsql
+          - zabbix-frontend-php
+          - php8.3-pgsql
+          - zabbix-nginx-conf
+          - zabbix-sql-scripts
+          - zabbix-agent
+        state: latest
+    - name: Создание пользователя PostgreSQL для Zabbix
+      expect:
+        command: sudo -u postgres createuser --pwprompt zabbix
+        responses:
+          "Enter password for new role":
+            - "{{ zabbix_pass }}"
+          "Enter it again":
+            - "{{ zabbix_pass }}"
+    - name: Создание БД
+      shell:
+        cmd: sudo -u postgres createdb -O zabbix zabbix
+    - name: On Zabbix server host import initial schema and data. You will be prompted to enter your newly created password.
+      shell:
+        cmd: zcat /usr/share/zabbix-sql-scripts/postgresql/server.sql.gz | sudo -u zabbix psql zabbix
+    - name: Настройка параметров БД на Zabbix server
+      lineinfile:
+        path: /etc/zabbix/zabbix_server.conf
+        regexp: "^# DBPassword="
+        line: "DBPassword=zabbix"
+    - name: Настройка nginx
+      copy:
+        src: ./nginx_zabbix.conf
+        dest: /etc/zabbix/nginx.conf
+    - name: Запуск zabbix-server
+      service:
+        name: zabbix-server
+        state: restarted
+        enabled: true
+    - name: Запуск zabbix-agent
+      service:
+        name: zabbix-agent
+        state: restarted
+        enabled: true
+    - name: Запуск nginx
+      service:
+        name: nginx
+        state: restarted
+        enabled: true
+    - name: Запуск php8.3-fpm
+      service:
+        name: php8.3-fpm
+        state: restarted
+        enabled: true
